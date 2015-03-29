@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="/usr/bin/fpc" Date="1394620095"/>
+  <Params Value=" -MObjFPC -Scghi -CX -Os3 -g -gl -gv -Xg -vewnhi -Fi/home/zhbr/Projects/Exchange/lib/x86_64-linux -Fu/usr/lib/lazarus/components/lazutils/lib/x86_64-linux -Fu/usr/lib/lazarus/packager/units/x86_64-linux -Fu/home/zhbr/Projects/Exchange/ -FU/home/zhbr/Projects/Exchange/lib/x86_64-linux/ -l project1.lpr"/>
+</CONFIG>
