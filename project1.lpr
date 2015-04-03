@@ -39,13 +39,54 @@ type
 type
    PProduct = ^Product;
    Product = record
-   id: integer;
-   name: shortstring;
-   model: shortstring;
-   quantity: integer;
-   image: shortstring;
-   price: real;
-   category_id: integer;
+    //table product
+    product_id: shortint;
+    model: shortstring;
+    sku: shortint;
+    upc: shortint;
+    ean: shortint;
+    jan: shortint;
+    isbn: shortint;
+    mpn: shortint;
+    location: shortint;
+    quantity: shortint;
+    stock_status_id: shortint;
+    image: string;
+    manufacturer_id: shortint;
+    shipping: shortint;
+    price: shortint;
+    points: shortint;
+    tax_class_id: shortint;
+    date_avaliable: shortstring;
+    weight: shortint;
+    weight_class_id: shortint;
+    length: shortint;
+    width: shortint;
+    height: shortint;
+    length_class_id: shortint;
+    subtract: shortint;
+    minimum: shortint;
+    sort_order: shortint;
+    status: shortint;
+    date_added: shortstring;
+    date_modified: shortstring;
+    viewed: shortint;
+    //table description
+    language_id:shortint;
+    name: string;
+    description: shortstring;
+    meta_description: shortstring;
+    meta_keyword: shortstring;
+    seo_title: shortstring;
+    seo_h1: shortstring;
+    tag: shortstring;
+    //table  product_to_category
+    category_id: shortint;
+    main_category: shortint;
+    //table product_to_store
+    store_id: shortint;
+
+
    next: PProduct
                   end;
 
@@ -76,8 +117,7 @@ const {mysql}
       m_base='zhbr';
       {/mysql}
 
-      {product}
-      {/product}
+
 
 
 var Products: PProduct;
@@ -93,8 +133,8 @@ begin
 
 
   xml_parse;
-  ConServ(m_codepage,m_addr,m_user,m_password,m_base);
-  AddCategory;
+  //ConServ(m_codepage,m_addr,m_user,m_password,m_base);
+  //AddCategory;
 
 
   // stop program loop
@@ -122,10 +162,12 @@ procedure TMyApplication.xml_parse;
           PassNode: TDOMNode;
           i:integer;
           cur_cat: PCategory;
+          cur_prod: PProduct;
 begin
-  ReadXMLFile(Doc,'/home/zhbr/acce.xml');
+  ReadXMLFile(Doc,'/home/zhbr/oil.xml');
   PassNode:=Doc.DocumentElement.FindNode('GROUPS');
   //for i:= 0 to (PassNode.ChildNodes.Count-1) do writeln(Passnode.ChildNodes.Item[i].Attributes.Item[0].NodeValue);
+  // Парсим категории
   New(Categories);
   cur_cat:=Categories;
   for i:=0 to (PassNode.ChildNodes.Count-1) do
@@ -148,8 +190,63 @@ begin
   dispose(cur_cat);
   readln;
 
-  PassNode.Free;
-  Doc.Free;
+  //Парсим товары
+  PassNode:=Doc.DocumentElement.FindNode('GOODS');
+  New(Products);
+  cur_prod:= Products;
+  i:=0;
+  for i:= 0 to (PassNode.ChildNodes.Count - 1) do
+   begin
+   writeln (StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[0].NodeValue));
+   cur_prod^.product_id:=StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[0].NodeValue);
+   cur_prod^.model:='-';
+   cur_prod^.sku:=0;
+   cur_prod^.upc:=0;
+   cur_prod^.ean:=0;
+   cur_prod^.jan:=0;
+   cur_prod^.isbn:=0;
+   cur_prod^.mpn:=0;
+   cur_prod^.location:=0;
+   cur_prod^.quantity:=StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[4].NodeValue);
+   cur_prod^.stock_status_id:=6;
+   cur_prod^.image:='no_image.jpg';
+   cur_prod^.manufacturer_id:=0;
+   cur_prod^.shipping:=1;
+   cur_prod^.price:=Round(StrToFloat(PassNode.ChildNodes.Item[i].Attributes.Item[5].NodeValue));
+   cur_prod^.points:=0;
+   cur_prod^.tax_class_id:=9;
+   cur_prod^.date_avaliable:='2015.04.01';
+   cur_prod^.weight_class_id:=1;
+   cur_prod^.length:=0;
+   cur_prod^.width:=0;
+   cur_prod^.height:=0;
+   cur_prod^.length_class_id:=1;
+   cur_prod^.subtract:=0;
+   cur_prod^.minimum:=1;
+   cur_prod^.sort_order:=1;
+   cur_prod^.status:=1;
+   cur_prod^.date_added:='2015-04-01 00:00:00';
+   cur_prod^.date_modified:='0000-00-00 00:00:00';
+   cur_prod^.viewed:=0;
+   cur_prod^.language_id:=1;
+   cur_prod^.name:=PassNode.ChildNodes.Item[i].Attributes.Item[1].NodeName;
+   cur_prod^.description:='';
+   cur_prod^.meta_description:='';
+   cur_prod^.meta_keyword:='';
+   cur_prod^.seo_title:='';
+   cur_prod^.seo_h1:='';
+   cur_prod^.tag:='';
+   cur_prod^.category_id:=StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[3].NodeValue);
+   cur_prod^.main_category:=1;
+   cur_prod^.store_id:=0;
+   New(cur_prod^.next);
+   cur_prod:= cur_prod^.next;
+   end;
+   cur_prod^.next:=nil;
+   readln;
+
+   PassNode.Free;
+   Doc.Free;
 
 end;
 
@@ -211,11 +308,12 @@ var    temp: PCategory;
     y,i: integer;
 begin
   temp:=Categories;
+  y:=1;
   while temp^.next <> nil do begin
   writeln('Добавление категории: ',temp^.name);
 
   try
-  writeln ('INSERT INTO '+m_base+'.oc_category (category_id, image, parent_id, top, `column`, sort_order, status, date_added, date_modified) VALUES( '''+IntToStr(temp^.category_id)+''', '''+temp^.image+''', '''+IntToStr(temp^.parent_id)+''', '''+IntToStr(temp^.top)+''', '''+IntToStr(temp^.column)+''', '''+IntToStr(temp^.sort_order)+''', '''+IntToStr(temp^.status)+''', '''+temp^.date_added+''', '''+temp^.date_modified+''');');
+  //writeln ('INSERT INTO '+m_base+'.oc_category (category_id, image, parent_id, top, `column`, sort_order, status, date_added, date_modified) VALUES( '''+IntToStr(temp^.category_id)+''', '''+temp^.image+''', '''+IntToStr(temp^.parent_id)+''', '''+IntToStr(temp^.top)+''', '''+IntToStr(temp^.column)+''', '''+IntToStr(temp^.sort_order)+''', '''+IntToStr(temp^.status)+''', '''+temp^.date_added+''', '''+temp^.date_modified+''');');
   Query.SQL.Clear;
   Query.SQL.Add('INSERT INTO '+m_base+'.oc_category (category_id, image, parent_id, top, `column`, sort_order, status, date_added, date_modified) VALUES( '''+IntToStr(temp^.category_id)+''', '''+temp^.image+''', '''+IntToStr(temp^.parent_id)+''', '''+IntToStr(temp^.top)+''', '''+IntToStr(temp^.column)+''', '''+IntToStr(temp^.sort_order)+''', '''+IntToStr(temp^.status)+''', '''+temp^.date_added+''', '''+temp^.date_modified+''');');
   Query.ExecSQL;
@@ -228,17 +326,14 @@ begin
   Query.SQL.Add('INSERT INTO '+m_base+'.oc_category_path (category_id, path_id, level) VALUES( '''+IntToStr(temp^.category_id)+''', '''+IntToStr(temp^.category_id)+''', 1);');
   Query.ExecSQL;
 
-  //Query.SQL.Clear;
-  //Query.SQL.Add('INSERT INTO ocstore.category_to_layout (category_id, store_id, layout_id) VALUES('''+IntToStr(y)+''', 0, 1);');
-  //Query.ExecSQL;
-
   Query.SQL.Clear;
   Query.SQL.Add('INSERT INTO '+m_base+'.oc_category_to_store (category_id, store_id) VALUES('''+IntToStr(temp^.category_id)+''', 0);');
   Query.ExecSQL;
   Query.SQL.Clear;
-  //y:=y+1;
+
   temp:=temp^.next;
-  writeln('Z');
+  writeln(y);
+  y:=y+1;
   except on E: EdatabaseError do begin
                                  writeln (E.Message);
                                  halt;
@@ -259,7 +354,7 @@ begin
    except on E: EDataBaseError do Writeln ('Ошибка: ', E.Message);
    end;
    Writeln ('Подключение к серверу ',host,'...');
-   //Connection.CharSet:=charset;
+   Connection.CharSet:=charset;
    Connection.HostName:=host;
    Connection.DatabaseName:=db;
    Connection.UserName:=user;
@@ -301,7 +396,7 @@ var
 
 begin
   Application:=TMyApplication.Create(nil);
-  Application.Title:='My Application';
+  Application.Title:='Exchange';
   Application.Run;
   Application.Free;
 end.
