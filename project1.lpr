@@ -275,17 +275,17 @@ procedure   TMyApplication.AddProduct;
 
 var
   i: longint;
-
+  temp : PProduct;
 begin
-
-  {for i:=1 to 10 do begin
-  writeln ('Instering product #',Products.id);
+  temp:=Products;
+  while temp^.next <> nil do
+  begin
   try
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO `ocstore`.`product_description` (`product_id`, `language_id`, `name`, `description`, `meta_description`, `meta_keyword`, `seo_title`, `seo_h1`, `tag`) VALUES ('''+IntToStr(Products.id)+''', ''1'', '''+Products.Name+''', '''', '''', '''', '''', '''', '''');');
+  Query.SQL.Add('INSERT INTO `ocstore`.`product_description` (`product_id`, `language_id`, `name`, `description`, `meta_description`, `meta_keyword`, `seo_title`, `seo_h1`, `tag`) VALUES ('''+IntToStr(temp^.price)+''', '''+IntToStr(temp^.language_id)+''', '''+temp^.name+''', '''+temp^.description+''', '''+temp^.meta_description+''', '''+temp^.meta_keyword+''', '''+temp^.seo_title+''', '''+temp^.seo_h1+''', '''+temp^.tag+''');');
   Query.ExecSQL;
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO `ocstore`.`product` (`product_id`, `model`,`sku`, `upc`, `ean`, `jan`, `isbn`, `mpn`, `location`, `quantity`, `stock_status_id`, `image`, `manufacturer_id`, `shipping`, `price`, `points`, `tax_class_id`, `date_available`, `weight`, `weight_class_id`, `length`, `width`, `height`, `length_class_id`, `subtract`, `minimum`, `sort_order`, `status`, `date_added`, `date_modified`, `viewed`) VALUES ('''+IntToStr(Products.id)+''','''+Products.model+''', '''', '''', '''', '''', '''', '''', '''', ''1'', ''5'','''+Products.image+''',''0'', ''1'', '''+IntToStr(Products.price)+''', ''0'', ''0'', ''2015-02-01'',''0.00000000'', ''1'', ''0.00000000'', ''0.00000000'', ''0.00000000'', ''2'', ''1'', ''1'', ''1'', ''1'', ''0000-00-00 00:00:00'', ''0000-00-00 00:00:00'', ''0'');');
+  Query.SQL.Add('INSERT INTO `ocstore`.`product` (`product_id`, `model`,`sku`, `upc`, `ean`, `jan`, `isbn`, `mpn`, `location`, `quantity`, `stock_status_id`, `image`, `manufacturer_id`, `shipping`, `price`, `points`, `tax_class_id`, `date_available`, `weight`, `weight_class_id`, `length`, `width`, `height`, `length_class_id`, `subtract`, `minimum`, `sort_order`, `status`, `date_added`, `date_modified`, `viewed`) VALUES ('''+IntToStr(temp^.product_id)+''','''+temp^.model+''', '''+IntToStr(temp^.sku)+''', '''+IntToStr(temp^.upc)+''', '''', '''', '''', '''', '''', ''1'', ''5'','''+Products.image+''',''0'', ''1'', '''+IntToStr(Products.price)+''', ''0'', ''0'', ''2015-02-01'',''0.00000000'', ''1'', ''0.00000000'', ''0.00000000'', ''0.00000000'', ''2'', ''1'', ''1'', ''1'', ''1'', ''0000-00-00 00:00:00'', ''0000-00-00 00:00:00'', ''0'');');
   Query.ExecSQL;
   Query.SQL.Clear;
   Query.SQL.Add('INSERT INTO `ocstore`.`product_to_category` (`product_id`, `category_id`, `main_category`) VALUES ('''+IntToStr(Products.id)+''', '''+IntToStr(Categories.id)+''', ''1'');');
@@ -297,9 +297,10 @@ begin
    on E: EDatabaseError do writeln ('Error:',E.Message);
 
   end;
-  Products.id:=Products.id+1;
+  temp:=temp^.next;
   end;
-  Readln;                  }
+  end;
+  Readln;
 
 end;
 
