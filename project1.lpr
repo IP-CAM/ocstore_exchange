@@ -27,10 +27,10 @@ type
     constructor Create(TheOwner: TComponent); override;
     destructor Destroy; override;
     procedure ConServ(charset,host,user,passwd,db:shortstring);
-    procedure AddProduct;
-    function FindId(const typeid:string):integer;
-    procedure xml_parse;
-    procedure AddCategory;
+    procedure AddProduct (Ptemp: Pointer);
+    //function FindId(const typeid:string):integer;
+    procedure xml_parse (const rate:shortint) ;
+    procedure AddCategory (Ctemp: Pointer);
     end;
 
   { TMyApplication  end}
@@ -42,7 +42,7 @@ type
     //table product
     product_id: integer;
     model: string;
-    sku: shortint;
+    sku: string;
     upc: shortint;
     ean: shortint;
     jan: shortint;
@@ -115,6 +115,7 @@ const {mysql}
       m_user='zhbr';
       m_password='031995911';
       m_base='zhbr';
+      m_prefix='oc_';
       {/mysql}
 
 
@@ -123,29 +124,32 @@ const {mysql}
 var Products: PProduct;
     Categories: PCategory;
     ProductCount,CatCount: integer;
+    FProduct,FCategory: pointer;
+    rate: shortint;
 procedure TMyApplication.DoRun;
-
-
 begin
-
   { add your program here }
+  Write('Введите процент надбавки к цене ');
+  readln (rate);
+  xml_parse (rate);
+  FProduct:=Products;
+  Fcategory:=Categories;
 
-
-
-  xml_parse;
   ConServ(m_codepage,m_addr,m_user,m_password,m_base);
+
   //AddCategory;
-  writeln (UTF8ToAnsi('jvkhsvjkvs'));
-  AddProduct;
 
-
-
+  while Products^.next <> nil do begin
+  AddProduct (Products);
+  Products:=Products^.next;
+  end;
   // stop program loop
   Terminate;
 end;
 
 
-procedure TMyApplication.xml_parse;
+
+procedure TMyApplication.xml_parse (const rate:shortint);
           const
           {category}
           store_id=0;
@@ -167,12 +171,12 @@ procedure TMyApplication.xml_parse;
           cur_cat: PCategory;
           cur_prod: PProduct;
 begin
-  ReadXMLFile(Doc,'/home/zhbr/3.xml');
+  ReadXMLFile(Doc,'/home/zhbr/oil.xml');
   PassNode:=Doc.DocumentElement.FindNode('GROUPS');
-  //for i:= 0 to (PassNode.ChildNodes.Count-1) do writeln(Passnode.ChildNodes.Item[i].Attributes.Item[0].NodeValue);
   // Парсим категории
   New(Categories);
   cur_cat:=Categories;
+  Writeln('Найдено ',PassNode.ChildNodes.Count-1,' категорий');
   for i:=0 to (PassNode.ChildNodes.Count-1) do
    begin
    cur_cat^.category_id:=StrToInt(Passnode.ChildNodes.Item[i].Attributes.Item[2].NodeValue);
@@ -186,27 +190,26 @@ begin
    cur_cat^.date_added:=cat_date_added;
    cur_cat^.date_modified:=cat_date_modified;
    cur_cat^.sort_order:=cat_sort_order;
-   if i = PassNode.ChildNodes.Count-1 then break;
    New(cur_cat^.Next);
    cur_cat:=cur_cat^.Next;
-
    end;
   cur_cat^.Next:=nil;
   dispose(cur_cat);
-  writeln ('Категории найдены ',PassNode.ChildNodes.Count-1,' ', PassNode.ChildNodes.Count);
+  writeln ('Загрузка категорий в память завершена');
   readln;
 
   //Парсим товары
   PassNode:=Doc.DocumentElement.FindNode('GOODS');
   New(Products);
   cur_prod:= Products;
+  Writeln('Найдено ',PassNode.ChildNodes.Count-1,' товаров');
   i:=0;
   for i:= 0 to (PassNode.ChildNodes.Count - 1) do
    begin
-   //writeln (StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[0].NodeValue));
-   cur_prod^.product_id:=StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[0].NodeValue);
+
+   cur_prod^.product_id:=i;
    cur_prod^.model:='-';
-   cur_prod^.sku:=0;
+   cur_prod^.sku:=PassNode.ChildNodes.Item[i].Attributes.Item[0].NodeValue;
    cur_prod^.upc:=0;
    cur_prod^.ean:=0;
    cur_prod^.jan:=0;
@@ -218,7 +221,8 @@ begin
    cur_prod^.image:='no_image.jpg';
    cur_prod^.manufacturer_id:=0;
    cur_prod^.shipping:=1;
-   cur_prod^.price:=Round(StrToFloat(PassNode.ChildNodes.Item[i].Attributes.Item[5].NodeValue));
+   cur_prod^.price:=Round(StrToFloat(PassNode.ChildNodes.Item[i].Attributes.Item[5].NodeValue)*rate/100+StrToFloat(PassNode.ChildNodes.Item[i].Attributes.Item[5].NodeValue));
+   writeln(cur_prod^.price,'  ');
    cur_prod^.points:=0;
    cur_prod^.tax_class_id:=9;
    cur_prod^.date_avaliable:='2015.04.01';
@@ -245,15 +249,11 @@ begin
    cur_prod^.category_id:=StrToInt(PassNode.ChildNodes.Item[i].Attributes.Item[3].NodeValue);
    cur_prod^.main_category:=1;
    cur_prod^.store_id:=0;
-   //writeln (PassNode.ChildNodes.Item[i].Attributes.Item[0].NodeValue,' ',cur_prod^.product_id, ' ', IntToStr(cur_prod^.product_id));
-   writeln (cur_prod^.category_id);
    New(cur_prod^.next);
    cur_prod:= cur_prod^.next;
-
-
    end;
    cur_prod^.next:=nil;
-   writeln ('Товары найдены');
+   writeln ('Загрузка товаров в память завершена');
    readln;
 
    PassNode.Free;
@@ -261,7 +261,7 @@ begin
 
 end;
 
-function TMyApplication.FindId(const typeid:string):integer;
+{function TMyApplication.FindId(const typeid:string):integer;
 var maxid:integer;
 begin
   try
@@ -280,85 +280,86 @@ begin
   except on E: EDataBaseError do writeln (e.Message);
   end;
   FindId:=maxid+1;
-end;
+end;          }
 
-procedure   TMyApplication.AddProduct;
+procedure   TMyApplication.AddProduct (Ptemp:Pointer);
 
-var
-  i: longint;
-  temp1 : PProduct;
+var temp1: PProduct;
+    e:boolean;
 begin
-  temp1:=Products;
-  while temp1^.next <> nil do
+  temp1 := Ptemp;
+  writeln ('Добавление товара ',temp1^.product_id,' :',temp1^.name);
+  Query.SQL.Clear;
+  Query.SQL.Add('SELECT * FROM '+m_prefix+'product');
+  Query.Open;
+  Query.First;
+  e:= FALSE;
+  while not Query.EOF do
   begin
-  writeln ('Добавление товара: ',temp1^.name);
+  Query.Next;
+  if temp1^.sku = Query.FieldByName('sku').AsString then e:=TRUE;
+  end;
+
+  if e then
+  begin
+  writeln ('Товар уже в базе, обновление цены');
+  Query.SQL.Clear;
+  writeln (temp1^.price);
+  Query.SQL.Add('UPDATE '+m_base+'.'+m_prefix+'product SET price = '+IntToStr(temp1^.price)+' WHERE '+m_prefix+'product.sku = '+temp1^.sku+';');
+  Query.ExecSQL;
+  end
+  else
+
+  begin
   try
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.`oc_product_description` (`product_id`, `language_id`, `name`, `description`, `meta_description`, `meta_keyword`, `seo_title`, `seo_h1`, `tag`) VALUES ('''+IntToStr(temp1^.product_id)+''', '''+IntToStr(temp1^.language_id)+''', '''+temp1^.name+''', '''+temp1^.description+''', '''+temp1^.meta_description+''', '''+temp1^.meta_keyword+''', '''+temp1^.seo_title+''', '''+temp1^.seo_h1+''', '''+temp1^.tag+''');');
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'product_description (`product_id`, `language_id`, `name`, `description`, `meta_description`, `meta_keyword`, `seo_title`, `seo_h1`, `tag`) VALUES ('''+IntToStr(temp1^.product_id)+''', '''+IntToStr(temp1^.language_id)+''', '''+temp1^.name+''', '''+temp1^.description+''', '''+temp1^.meta_description+''', '''+temp1^.meta_keyword+''', '''+temp1^.seo_title+''', '''+temp1^.seo_h1+''', '''+temp1^.tag+''');');
   Query.ExecSQL;
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.`oc_product` (`product_id`, `model`,`sku`, `upc`, `ean`, `jan`, `isbn`, `mpn`, `location`, `quantity`, `stock_status_id`, `image`, `manufacturer_id`, `shipping`, `price`, `points`, `tax_class_id`, `date_available`, `weight`, `weight_class_id`, `length`, `width`, `height`, `length_class_id`, `subtract`, `minimum`, `sort_order`, `status`, `date_added`, `date_modified`, `viewed`) VALUES ('''+IntToStr(temp1^.product_id)+''','''+temp1^.model+''', '''+IntToStr(temp1^.sku)+''', '''+IntToStr(temp1^.upc)+''', '''+IntToStr(temp1^.ean)+''', '''+IntToStr(temp1^.jan)+''', '''+IntToStr(temp1^.isbn)+''', '''+IntToStr(temp1^.mpn)+''', '''+IntToStr(temp1^.location)+''', '''+IntToStr(temp1^.quantity)+''', '''+IntToStr(temp1^.stock_status_id)+''','''+temp1^.image+''','''+IntToStr(temp1^.manufacturer_id)+''', '''+IntToStr(temp1^.shipping)+''', '''+IntToStr(temp1^.price)+''', '''+IntToStr(temp1^.points)+''', '''+IntToStr(temp1^.tax_class_id)+''', '''+temp1^.date_avaliable+''','''+IntToStr(temp1^.weight)+''', '''+IntToStr(temp1^.weight_class_id)+''', '''+IntToStr(temp1^.length)+''', '''+IntToStr(temp1^.width)+''', '''+IntToStr(temp1^.height)+''', '''+IntToStr(temp1^.length_class_id)+''', '''+IntToStr(temp1^.subtract)+''', '''+IntToStr(temp1^.minimum)+''', '''+IntToStr(temp1^.sort_order)+''', '''+IntToStr(temp1^.status)+''', '''+temp1^.date_added+''', '''+temp1^.date_modified+''', '''+IntToStr(temp1^.viewed)+''');');
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'product (`product_id`, `model`,`sku`, `upc`, `ean`, `jan`, `isbn`, `mpn`, `location`, `quantity`, `stock_status_id`, `image`, `manufacturer_id`, `shipping`, `price`, `points`, `tax_class_id`, `date_available`, `weight`, `weight_class_id`, `length`, `width`, `height`, `length_class_id`, `subtract`, `minimum`, `sort_order`, `status`, `date_added`, `date_modified`, `viewed`) VALUES ('''+IntToStr(temp1^.product_id)+''','''+temp1^.model+''', '''+temp1^.sku+''', '''+IntToStr(temp1^.upc)+''', '''+IntToStr(temp1^.ean)+''', '''+IntToStr(temp1^.jan)+''', '''+IntToStr(temp1^.isbn)+''', '''+IntToStr(temp1^.mpn)+''', '''+IntToStr(temp1^.location)+''', '''+IntToStr(temp1^.quantity)+''', '''+IntToStr(temp1^.stock_status_id)+''','''+temp1^.image+''','''+IntToStr(temp1^.manufacturer_id)+''', '''+IntToStr(temp1^.shipping)+''', '''+IntToStr(temp1^.price)+''', '''+IntToStr(temp1^.points)+''', '''+IntToStr(temp1^.tax_class_id)+''', '''+temp1^.date_avaliable+''','''+IntToStr(temp1^.weight)+''', '''+IntToStr(temp1^.weight_class_id)+''', '''+IntToStr(temp1^.length)+''', '''+IntToStr(temp1^.width)+''', '''+IntToStr(temp1^.height)+''', '''+IntToStr(temp1^.length_class_id)+''', '''+IntToStr(temp1^.subtract)+''', '''+IntToStr(temp1^.minimum)+''', '''+IntToStr(temp1^.sort_order)+''', '''+IntToStr(temp1^.status)+''', '''+temp1^.date_added+''', '''+temp1^.date_modified+''', '''+IntToStr(temp1^.viewed)+''');');
   Query.ExecSQL;
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.`oc_product_to_category` (`product_id`, `category_id`, `main_category`) VALUES ('''+IntToStr(temp1^.product_id)+''', '''+IntToStr(temp1^.category_id)+''', '''+IntToStr(temp1^.main_category)+''');');
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'product_to_category (`product_id`, `category_id`, `main_category`) VALUES ('''+IntToStr(temp1^.product_id)+''', '''+IntToStr(temp1^.category_id)+''', '''+IntToStr(temp1^.main_category)+''');');
   Query.ExecSQL;
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.oc_product_to_store (product_id, store_id) VALUES ('''+IntToStr(temp1^.product_id)+''', '''+IntToStr(temp1^.store_id)+''');');
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'product_to_store (product_id, store_id) VALUES ('''+IntToStr(temp1^.product_id)+''', '''+IntToStr(temp1^.store_id)+''');');
   Query.ExecSQL;
   except
-   on E: EDatabaseError do writeln ('Error:',E.Message);
-
+  on E: EDatabaseError do writeln ('Error:',E.Message);
   end;
-  temp1:=temp1^.next;
   end;
-  Readln;
 end;
 
 
 
 
-procedure TMyApplication.AddCategory;
+procedure TMyApplication.AddCategory (Ctemp:Pointer);
 var    temp: PCategory;
-    y,i: integer;
+
 begin
-  temp:=Categories;
-  y:=1;
-  while temp^.next <> nil do begin
-  writeln('Добавление категории: ',temp^.name);
-
-  //try
-
-  //writeln ('INSERT INTO '+m_base+'.oc_category (category_id, image, parent_id, top, `column`, sort_order, status, date_added, date_modified) VALUES( '''+IntToStr(temp^.category_id)+''', '''+temp^.image+''', '''+IntToStr(temp^.parent_id)+''', '''+IntToStr(temp^.top)+''', '''+IntToStr(temp^.column)+''', '''+IntToStr(temp^.sort_order)+''', '''+IntToStr(temp^.status)+''', '''+temp^.date_added+''', '''+temp^.date_modified+''');');
+  temp:=Ctemp;
+  try
   Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.oc_category (category_id, image, parent_id, top, `column`, sort_order, status, date_added, date_modified) VALUES( '''+IntToStr(temp^.category_id)+''', '''+temp^.image+''', '''+IntToStr(temp^.parent_id)+''', '''+IntToStr(temp^.top)+''', '''+IntToStr(temp^.column)+''', '''+IntToStr(temp^.sort_order)+''', '''+IntToStr(temp^.status)+''', '''+temp^.date_added+''', '''+temp^.date_modified+''');');
-  Query.ExecSQL;
-
-  Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.oc_category_description (category_id, language_id, name, description, meta_description, meta_keyword, seo_title, seo_h1) VALUES('''+IntToStr(temp^.category_id)+''', '''+IntToStr(temp^.language_id)+''', '''+temp^.name+''', '''', '''', '''', '''', '''');');
-  Query.ExecSQL;
-
-  Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.oc_category_path (category_id, path_id, level) VALUES( '''+IntToStr(temp^.category_id)+''', '''+IntToStr(temp^.category_id)+''', 1);');
-  Query.ExecSQL;
-
-  Query.SQL.Clear;
-  Query.SQL.Add('INSERT INTO '+m_base+'.oc_category_to_store (category_id, store_id) VALUES('''+IntToStr(temp^.category_id)+''', 0);');
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'category (category_id, image, parent_id, top, `column`, sort_order, status, date_added, date_modified) VALUES( '''+IntToStr(temp^.category_id)+''', '''+temp^.image+''', '''+IntToStr(temp^.parent_id)+''', '''+IntToStr(temp^.top)+''', '''+IntToStr(temp^.column)+''', '''+IntToStr(temp^.sort_order)+''', '''+IntToStr(temp^.status)+''', '''+temp^.date_added+''', '''+temp^.date_modified+''');');
   Query.ExecSQL;
   Query.SQL.Clear;
-
-  temp:=temp^.next;
-  writeln('1111: ',temp^.name);
-
-  writeln(y);
-  y:=y+1;
-
-  //except on E: EdatabaseError do begin
-  //                               writeln (E.Message);
-  //                               halt;
-  //                              end;
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'category_description (category_id, language_id, name, description, meta_description, meta_keyword, seo_title, seo_h1) VALUES('''+IntToStr(temp^.category_id)+''', '''+IntToStr(temp^.language_id)+''', '''+temp^.name+''', '''', '''', '''', '''', '''');');
+  Query.ExecSQL;
+  Query.SQL.Clear;
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'category_path (category_id, path_id, level) VALUES( '''+IntToStr(temp^.category_id)+''', '''+IntToStr(temp^.category_id)+''', 1);');
+  Query.ExecSQL;
+  Query.SQL.Clear;
+  Query.SQL.Add('INSERT INTO '+m_base+'.'+m_prefix+'category_to_store (category_id, store_id) VALUES('''+IntToStr(temp^.category_id)+''', 0);');
+  Query.ExecSQL;
+  Query.SQL.Clear;
+  except on E: EdatabaseError do
+         begin
+          writeln (E.Message);
+          halt;
+         end;
   end;
 end;
-//end;
+
 
 procedure TMyApplication.ConServ(charset,host,user,passwd,db:shortstring);
 var a:string;
@@ -377,10 +378,12 @@ begin
    Connection.DatabaseName:=db;
    Connection.UserName:=user;
    Connection.Password:=passwd;
+
    try
    Transaction.DataBase:=Connection;
    Query.DataBase:=Connection;
    Connection.Connected:=True;
+   Connection.ExecuteDirect('SET CHARACTER SET utf8');
    Writeln ('Подключение прошло успешно!');
    except
      on E: EDatabaseError do begin
